@@ -7,8 +7,9 @@ logger = logging.getLogger("rag_agent")
 
 def rag_debugging_agent(state: DebugState) -> Dict[str, Any]:
     """Agent 2: RAG Debugging Agent
-    Retrieves related documentation, official patterns, and verified previous debugging fixes from Qdrant.
+    Retrieves supporting reference patterns and documentation from Qdrant matching the submitted error.
     """
+    req_id = state.get("request_id", "req-unknown")
     error_type = state.get("error_type", "")
     error_msg = state.get("error_message", "")
     root_cause = state.get("root_cause", "")
@@ -16,16 +17,22 @@ def rag_debugging_agent(state: DebugState) -> Dict[str, Any]:
     mcp_calls = list(state.get("mcp_calls_made", []))
     logs = list(state.get("workflow_logs", []))
 
-    logs.append(f"RAG Debugging Agent: Querying Qdrant for similar cases matching '{error_type}'...")
+    logger.info(f"[{req_id}] Agent 2: Querying Qdrant for supporting knowledge on '{error_type}'")
+    logs.append(f"[{req_id}] Agent 2: Querying Qdrant knowledge base for '{error_type}'...")
 
-    # Formulate rich search query
-    query = f"{error_type} {root_cause}\n{error_msg[:200]}\n{code[:200]}"
+    # Formulate focused query from submitted code context
+    query = f"{error_type} {root_cause}\n{error_msg[:150]}\n{code[:150]}"
 
-    # Real MCP tool call: search_debug_knowledge
-    references = mcp_client.search_debug_knowledge(query=query, limit=3)
-    mcp_calls.append("search_debug_knowledge")
+    # Real MCP tool call: search_debug_knowledge with defensive error handling
+    try:
+        references = mcp_client.search_debug_knowledge(query=query, limit=3)
+        mcp_calls.append("search_debug_knowledge")
+    except Exception as e:
+        logger.warning(f"[{req_id}] Agent 2: Qdrant query warning ({e}), continuing without citations.")
+        references = []
 
-    logs.append(f"RAG Debugging Agent: Retrieved {len(references)} verified references from Qdrant.")
+    logger.info(f"[{req_id}] Agent 2: Retrieved {len(references)} supporting citations from Qdrant")
+    logs.append(f"[{req_id}] Agent 2: Retrieved {len(references)} supporting citations from Qdrant vector database.")
 
     return {
         "rag_references": references,

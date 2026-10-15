@@ -1,7 +1,10 @@
 from typing import TypedDict, List, Dict, Any, Optional
 
 class DebugState(TypedDict, total=False):
-    # Inputs
+    # Request tracking
+    request_id: str
+
+    # User inputs
     code: str
     error_message: str
 

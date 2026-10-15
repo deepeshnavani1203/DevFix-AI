@@ -21,14 +21,19 @@ import {
   Trash2,
   FileCode2,
   ChevronRight,
-  BookmarkPlus
+  BookmarkPlus,
+  Play,
+  RotateCcw,
+  CheckCheck
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8000';
 
 const SAMPLE_BUGS = [
   {
-    name: 'ZeroDivision in Average',
+    name: 'ZeroDivision',
+    tag: 'Runtime',
+    color: 'pill-rose',
     code: `def calculate_average(scores):
     total = sum(scores)
     return total / len(scores)
@@ -44,17 +49,21 @@ print(calculate_average(data))`,
 ZeroDivisionError: division by zero`
   },
   {
-    name: 'Mutable Default Argument',
+    name: 'Mutable Default',
+    tag: 'Logic Trap',
+    color: 'pill-amber',
     code: `def register_user(username, roles=[]):
     roles.append(username)
     return roles
 
 print(register_user("Alice"))
 print(register_user("Bob")) # Unexpectedly retains Alice!`,
-    error: `LogicError: Default argument 'roles' retains state across multiple invocations.`
+    error: `LogicError: Default argument 'roles' retains state across multiple function calls.`
   },
   {
-    name: 'Dict KeyError Access',
+    name: 'Dict KeyError',
+    tag: 'Key Lookup',
+    color: 'pill-rose',
     code: `def get_user_email(profile):
     return profile['email']
 
@@ -68,7 +77,9 @@ print(get_user_email(user))`,
 KeyError: 'email'`
   },
   {
-    name: 'UnboundLocalError Scope Trap',
+    name: 'UnboundLocal',
+    tag: 'Scope Trap',
+    color: 'pill-violet',
     code: `counter = 0
 
 def increment():
@@ -96,13 +107,12 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  // System Health & Knowledge Stats
+  // System Stats
   const [health, setHealth] = useState(null);
   const [knowledgeItems, setKnowledgeItems] = useState([]);
   const [knowledgeSearch, setKnowledgeSearch] = useState('');
   const [historyItems, setHistoryItems] = useState([]);
 
-  // Load health on mount
   useEffect(() => {
     fetchHealth();
     fetchKnowledge();
@@ -156,13 +166,13 @@ export default function App() {
     setDebugResult(null);
     setSavedSuccess(false);
 
-    // Multi-Agent visual stepper
+    // Dynamic Multi-Agent visual stepper
     setCurrentStep('Agent 1: Error Analysis & AST Inspection via MCP...');
     const stepTimer1 = setTimeout(() => {
       setCurrentStep('Agent 2: Retrieving Verified Solutions from Qdrant RAG...');
     }, 1200);
     const stepTimer2 = setTimeout(() => {
-      setCurrentStep('Agent 3: Synthesizing Fix & Executing Sandboxed Tests via MCP...');
+      setCurrentStep('Agent 3: Synthesizing Fix & Running Isolated Sandbox Tests...');
     }, 2400);
 
     try {
@@ -206,7 +216,9 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = (event) => {
       setCode(event.target.result);
+      setErrorMessage(''); // Clear previous traceback so uploaded code is evaluated cleanly
       setApiError(null);
+      setDebugResult(null);
     };
     reader.readAsText(file);
   };
@@ -264,163 +276,175 @@ export default function App() {
   });
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Top Navigation Bar */}
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
+      
+      {/* Top Obsidian Navigation Bar */}
       <header
         style={{
-          borderBottom: '1px solid var(--border-subtle)',
-          backgroundColor: 'rgba(7, 9, 14, 0.85)',
-          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          backgroundColor: '#040405',
           position: 'sticky',
           top: 0,
           zIndex: 50,
-          padding: '14px 28px',
+          padding: '12px 28px',
         }}
       >
-        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
-          {/* Logo & Title */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+          
+          {/* Logo & Meta */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div
               style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
+                width: '36px',
+                height: '36px',
+                borderRadius: '9px',
+                backgroundColor: '#0a0a0c',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 0 16px rgba(56, 189, 248, 0.4)',
+                boxShadow: '0 0 16px -2px rgba(16, 185, 129, 0.4)',
               }}
             >
-              <Bug size={22} color="#030712" />
+              <Bug size={19} color="#10b981" />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h1 style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.02em', color: '#fff' }}>
-                  DevFix AI
-                </h1>
-                <span className="badge badge-purple" style={{ fontSize: '11px', padding: '2px 8px' }}>
-                  Multi-Agent
+                <span style={{ fontSize: '16px', fontWeight: '800', letterSpacing: '-0.03em', color: '#ffffff' }}>
+                  DevFix
+                </span>
+                <span style={{ fontSize: '16px', fontWeight: '800', letterSpacing: '-0.03em', color: '#10b981' }}>
+                  AI
+                </span>
+                <span className="pill pill-emerald" style={{ fontSize: '10px', padding: '1px 7px' }}>
+                  Multi-Agent v1.0
                 </span>
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                LangGraph • Groq • Qdrant RAG • Python MCP
+              <p style={{ fontSize: '11px', color: '#71717a', letterSpacing: '-0.01em' }}>
+                LangGraph • Groq • Qdrant RAG • Python MCP SDK
               </p>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 255, 255, 0.04)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
+          {/* Obsidian Navigation Switcher */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#090a0d', padding: '4px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
             <button
               onClick={() => setActiveTab('studio')}
-              className="btn-secondary"
+              className="btn-obsidian"
               style={{
-                background: activeTab === 'studio' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                borderColor: activeTab === 'studio' ? 'var(--accent-cyan)' : 'transparent',
-                color: activeTab === 'studio' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                backgroundColor: activeTab === 'studio' ? '#18191d' : 'transparent',
+                borderColor: activeTab === 'studio' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+                color: activeTab === 'studio' ? '#ffffff' : '#71717a',
               }}
             >
-              <Code2 size={16} /> Debug Studio
+              <Code2 size={15} color={activeTab === 'studio' ? '#10b981' : '#71717a'} />
+              <span>Debug Studio</span>
             </button>
             <button
               onClick={() => setActiveTab('knowledge')}
-              className="btn-secondary"
+              className="btn-obsidian"
               style={{
-                background: activeTab === 'knowledge' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                borderColor: activeTab === 'knowledge' ? 'var(--accent-cyan)' : 'transparent',
-                color: activeTab === 'knowledge' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                backgroundColor: activeTab === 'knowledge' ? '#18191d' : 'transparent',
+                borderColor: activeTab === 'knowledge' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+                color: activeTab === 'knowledge' ? '#ffffff' : '#71717a',
               }}
             >
-              <Database size={16} /> Knowledge Base ({health?.services?.qdrant?.total_records || knowledgeItems.length || '35+'})
+              <Database size={15} color={activeTab === 'knowledge' ? '#8b5cf6' : '#71717a'} />
+              <span>Knowledge Base ({health?.services?.qdrant?.total_records || knowledgeItems.length || '35+'})</span>
             </button>
             <button
               onClick={() => setActiveTab('history')}
-              className="btn-secondary"
+              className="btn-obsidian"
               style={{
-                background: activeTab === 'history' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                borderColor: activeTab === 'history' ? 'var(--accent-cyan)' : 'transparent',
-                color: activeTab === 'history' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                backgroundColor: activeTab === 'history' ? '#18191d' : 'transparent',
+                borderColor: activeTab === 'history' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+                color: activeTab === 'history' ? '#ffffff' : '#71717a',
               }}
             >
-              <History size={16} /> History ({historyItems.length})
+              <History size={15} color={activeTab === 'history' ? '#06b6d4' : '#71717a'} />
+              <span>History ({historyItems.length})</span>
             </button>
           </div>
 
-          {/* Status & Connection Pill */}
+          {/* Backend Status indicator */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div
-              className={`badge ${health?.status === 'healthy' ? 'badge-green' : 'badge-red'}`}
-              style={{ padding: '6px 12px' }}
+              className={`pill ${health?.status === 'healthy' ? 'pill-emerald' : 'pill-rose'}`}
+              style={{ padding: '5px 12px', fontSize: '11px' }}
             >
               <span
                 style={{
-                  width: '8px',
-                  height: '8px',
+                  width: '6px',
+                  height: '6px',
                   borderRadius: '50%',
-                  backgroundColor: health?.status === 'healthy' ? '#10b981' : '#ef4444',
-                  boxShadow: health?.status === 'healthy' ? '0 0 8px #10b981' : 'none',
+                  backgroundColor: health?.status === 'healthy' ? '#10b981' : '#f43f5e',
+                  boxShadow: health?.status === 'healthy' ? '0 0 10px #10b981' : 'none',
                 }}
               />
-              {health?.status === 'healthy' ? 'Backend Online' : 'Backend Disconnected'}
+              {health?.status === 'healthy' ? 'Backend Ready' : 'Connecting Backend...'}
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main style={{ flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', padding: '24px 20px' }}>
+      {/* Main Workspace */}
+      <main style={{ flex: 1, maxWidth: '1440px', width: '100%', margin: '0 auto', padding: '24px 24px' }}>
+        
         {apiError && (
           <div
-            className="glass-panel"
+            className="obsidian-card"
             style={{
-              borderColor: 'rgba(239, 68, 68, 0.4)',
-              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              borderColor: 'rgba(244, 63, 94, 0.3)',
+              backgroundColor: 'rgba(244, 63, 94, 0.05)',
               padding: '14px 18px',
               marginBottom: '20px',
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              color: '#fca5a5',
+              color: '#fda4af',
             }}
           >
-            <AlertTriangle size={20} color="#ef4444" />
-            <span style={{ fontSize: '14px' }}>{apiError}</span>
+            <AlertTriangle size={18} color="#f43f5e" />
+            <span style={{ fontSize: '13px' }}>{apiError}</span>
           </div>
         )}
 
+        {/* ============================================================== */}
         {/* TAB 1: DEBUG STUDIO */}
+        {/* ============================================================== */}
         {activeTab === 'studio' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '22px' }}>
             
-            {/* Left Side: Code & Error Input */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            {/* Left Column: Code Inputs */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
-              {/* Presets & File Upload toolbar */}
-              <div className="glass-panel" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Sparkles size={16} color="var(--accent-cyan)" />
-                  <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)' }}>Load Example:</span>
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {SAMPLE_BUGS.map((sample, idx) => (
-                      <button
-                        key={idx}
-                        className="btn-secondary"
-                        style={{ fontSize: '11px', padding: '4px 8px' }}
-                        onClick={() => {
-                          setCode(sample.code);
-                          setErrorMessage(sample.error);
-                          setDebugResult(null);
-                        }}
-                      >
-                        {sample.name}
-                      </button>
-                    ))}
-                  </div>
+              {/* Preset Chips Bar */}
+              <div className="obsidian-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#71717a' }}>
+                    Quick Presets:
+                  </span>
+                  {SAMPLE_BUGS.map((sample, idx) => (
+                    <button
+                      key={idx}
+                      className="btn-obsidian"
+                      style={{ padding: '4px 10px', fontSize: '11.5px', gap: '6px' }}
+                      onClick={() => {
+                        setCode(sample.code);
+                        setErrorMessage(sample.error);
+                        setDebugResult(null);
+                      }}
+                    >
+                      <span className={`pill ${sample.color}`} style={{ fontSize: '9px', padding: '1px 5px' }}>
+                        {sample.tag}
+                      </span>
+                      <span>{sample.name}</span>
+                    </button>
+                  ))}
                 </div>
 
-                {/* Upload .py file */}
-                <label className="btn-secondary" style={{ cursor: 'pointer', fontSize: '12px' }}>
-                  <Upload size={14} />
+                <label className="btn-obsidian" style={{ cursor: 'pointer', fontSize: '11.5px' }}>
+                  <Upload size={13} color="#10b981" />
                   <span>Upload .py</span>
                   <input
                     type="file"
@@ -431,69 +455,104 @@ export default function App() {
                 </label>
               </div>
 
-              {/* Code Input Area */}
-              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Code2 size={16} color="var(--accent-cyan)" />
-                    <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main)' }}>
-                      Python Source Code
-                    </span>
+              {/* Code Editor Window */}
+              <div className="editor-window">
+                <div className="editor-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div className="window-dots">
+                      <div className="window-dot" style={{ backgroundColor: '#ff5f56' }} />
+                      <div className="window-dot" style={{ backgroundColor: '#ffbd2e' }} />
+                      <div className="window-dot" style={{ backgroundColor: '#27c93f' }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '6px' }}>
+                      <Code2 size={13} color="#10b981" />
+                      <span className="font-mono" style={{ fontSize: '12px', color: '#e4e4e7' }}>
+                        buggy_program.py
+                      </span>
+                    </div>
                   </div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                    Python 3.12+ AST validated
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', color: '#52525b' }}>Python AST Validated</span>
+                    <button
+                      className="btn-obsidian"
+                      style={{ padding: '2px 8px', fontSize: '11px' }}
+                      onClick={() => {
+                        setCode('');
+                        setErrorMessage('');
+                        setDebugResult(null);
+                      }}
+                      title="Clear code and traceback"
+                    >
+                      <RotateCcw size={11} /> Clear All
+                    </button>
+                  </div>
                 </div>
                 <textarea
-                  className="code-editor"
+                  className="editor-textarea"
                   rows={13}
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="Paste buggy Python code here..."
-                  style={{ width: '100%' }}
+                  placeholder="# Paste your Python code here..."
                 />
               </div>
 
-              {/* Error / Traceback Input Area */}
-              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Terminal size={16} color="#f87171" />
-                    <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main)' }}>
-                      Error Traceback / Message (Optional)
-                    </span>
+              {/* Traceback Window */}
+              <div className="editor-window">
+                <div className="editor-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div className="window-dots">
+                      <div className="window-dot" style={{ backgroundColor: '#ff5f56' }} />
+                      <div className="window-dot" style={{ backgroundColor: '#ffbd2e' }} />
+                      <div className="window-dot" style={{ backgroundColor: '#27c93f' }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '6px' }}>
+                      <Terminal size={13} color="#f43f5e" />
+                      <span className="font-mono" style={{ fontSize: '12px', color: '#e4e4e7' }}>
+                        traceback.log
+                      </span>
+                    </div>
                   </div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                    Parsed with MCP read_error_log
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', color: '#52525b' }}>Auto-detected if empty</span>
+                    {errorMessage && (
+                      <button
+                        className="btn-obsidian"
+                        style={{ padding: '2px 8px', fontSize: '11px', color: '#fda4af' }}
+                        onClick={() => setErrorMessage('')}
+                        title="Clear traceback"
+                      >
+                        <RotateCcw size={11} /> Clear
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <textarea
-                  className="code-editor"
-                  rows={6}
+                  className="editor-textarea"
+                  rows={5}
                   value={errorMessage}
                   onChange={(e) => setErrorMessage(e.target.value)}
-                  placeholder="Paste Python traceback or console error log here (optional)..."
-                  style={{ width: '100%', borderColor: 'rgba(239, 68, 68, 0.2)' }}
+                  placeholder="Paste Python error message or console traceback (optional - auto-detected if left empty)..."
+                  style={{ color: '#fda4af' }}
                 />
               </div>
 
-              {/* Run Button & Loading Stepper */}
+              {/* Action Button */}
               <div>
                 <button
-                  className="btn-primary"
+                  className="btn-emerald"
                   onClick={handleDebug}
                   disabled={isLoading}
-                  style={{ width: '100%', padding: '14px', fontSize: '15px' }}
+                  style={{ width: '100%', padding: '13px', fontSize: '14.5px' }}
                 >
                   {isLoading ? (
                     <>
-                      <RefreshCw size={18} className="spin-slow" />
-                      <span>{currentStep || 'Debugging with Multi-Agent Pipeline...'}</span>
+                      <RefreshCw size={17} className="animate-spin-smooth" />
+                      <span>{currentStep || 'Multi-Agent Workflow Running...'}</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles size={18} />
-                      <span>Analyze & Fix with DevFix Multi-Agent</span>
+                      <Play size={16} fill="#000000" />
+                      <span>Analyze & Debug with Multi-Agent AI</span>
                     </>
                   )}
                 </button>
@@ -501,86 +560,109 @@ export default function App() {
 
             </div>
 
-            {/* Right Side: Multi-Agent Analysis, Solutions & Validation */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            {/* Right Column: AI Agent Outputs */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
               {!debugResult && !isLoading && (
                 <div
-                  className="glass-panel"
+                  className="obsidian-card"
                   style={{
-                    padding: '48px 24px',
+                    padding: '56px 28px',
                     textAlign: 'center',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '16px',
-                    minHeight: '400px',
+                    gap: '18px',
+                    minHeight: '450px',
                   }}
                 >
                   <div
                     style={{
-                      width: '60px',
-                      height: '60px',
+                      width: '64px',
+                      height: '64px',
                       borderRadius: '16px',
-                      background: 'rgba(56, 189, 248, 0.1)',
+                      backgroundColor: '#0c0d10',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      border: '1px solid var(--border-subtle)',
+                      boxShadow: '0 0 30px -5px rgba(16, 185, 129, 0.15)',
                     }}
                   >
-                    <Cpu size={30} color="var(--accent-cyan)" />
+                    <Cpu size={30} color="#10b981" />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '17px', fontWeight: '600', color: '#fff', marginBottom: '6px' }}>
-                      Multi-Agent Debugging Engine Ready
+                    <h3 style={{ fontSize: '17px', fontWeight: '700', color: '#ffffff', marginBottom: '6px' }}>
+                      Autonomous Multi-Agent Engine
                     </h3>
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: '420px', lineHeight: 1.6 }}>
-                      Load an example or paste your code on the left. DevFix orchestrates Error Analysis, Qdrant RAG, and Sandboxed MCP Testing to deliver verified fixes.
+                    <p style={{ fontSize: '13px', color: '#71717a', maxWidth: '420px', lineHeight: 1.6 }}>
+                      Load an example preset or paste your code on the left. DevFix coordinates static AST analysis, Qdrant RAG retrieval, and isolated sandbox execution.
                     </p>
                   </div>
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                    <span className="badge badge-blue">1. Error Analysis</span>
-                    <span className="badge badge-purple">2. RAG Retrieval</span>
-                    <span className="badge badge-green">3. Sandbox Validation</span>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <span className="pill pill-cyan">1. Error Analysis</span>
+                    <span className="pill pill-violet">2. Qdrant RAG</span>
+                    <span className="pill pill-emerald">3. Sandbox Validation</span>
                   </div>
                 </div>
               )}
 
               {isLoading && (
                 <div
-                  className="glass-panel animate-pulse-glow"
+                  className="obsidian-card"
                   style={{
-                    padding: '40px 24px',
+                    padding: '36px 24px',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '20px',
-                    minHeight: '400px',
+                    minHeight: '450px',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <RefreshCw size={24} className="spin-slow" color="var(--accent-cyan)" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div
+                      style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '10px',
+                        backgroundColor: '#10b98115',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <RefreshCw size={20} className="animate-spin-smooth" color="#10b981" />
+                    </div>
                     <div>
-                      <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#fff' }}>
-                        Autonomous Agent Orchestration in Progress
-                      </h3>
-                      <p style={{ fontSize: '13px', color: 'var(--accent-cyan)' }}>{currentStep}</p>
+                      <h4 style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff' }}>
+                        LangGraph Agent Pipeline Active
+                      </h4>
+                      <p style={{ fontSize: '12px', color: '#10b981' }}>{currentStep}</p>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.03)' }}>
-                      <CheckCircle2 size={16} color="#38bdf8" />
-                      <span style={{ fontSize: '13px', color: '#cbd5e1' }}>Agent 1: Inspecting code AST & traceback frames via MCP tools</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '10px', backgroundColor: '#07080a', border: '1px solid var(--border-hairline)' }}>
+                      <CheckCircle2 size={16} color="#06b6d4" />
+                      <div>
+                        <div style={{ fontSize: '12.5px', fontWeight: '600', color: '#ffffff' }}>Agent 1: AST & Traceback Inspection</div>
+                        <div style={{ fontSize: '11px', color: '#71717a' }}>MCP analyze_code + read_error_log parsing offending lines</div>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.03)' }}>
-                      <Database size={16} color="#a855f7" />
-                      <span style={{ fontSize: '13px', color: '#cbd5e1' }}>Agent 2: Embedding query and retrieving similar cases from Qdrant</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '10px', backgroundColor: '#07080a', border: '1px solid var(--border-hairline)' }}>
+                      <Database size={16} color="#8b5cf6" />
+                      <div>
+                        <div style={{ fontSize: '12.5px', fontWeight: '600', color: '#ffffff' }}>Agent 2: Qdrant Vector Retrieval</div>
+                        <div style={{ fontSize: '11px', color: '#71717a' }}>Querying MiniLM embeddings for verified debugging cases</div>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.03)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '10px', backgroundColor: '#07080a', border: '1px solid var(--border-hairline)' }}>
                       <ShieldCheck size={16} color="#10b981" />
-                      <span style={{ fontSize: '13px', color: '#cbd5e1' }}>Agent 3: Generating fix and executing sandboxed tests with timeout</span>
+                      <div>
+                        <div style={{ fontSize: '12.5px', fontWeight: '600', color: '#ffffff' }}>Agent 3: Sandbox Assertion Execution</div>
+                        <div style={{ fontSize: '11px', color: '#71717a' }}>MCP run_tests executing in isolated subprocess with timeout</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -588,25 +670,30 @@ export default function App() {
 
               {debugResult && !isLoading && (
                 <>
-                  {/* Agent Telemetry & Diagnostics Card */}
-                  <div className="glass-panel" style={{ padding: '18px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                  {/* Diagnostic Diagnosis Card */}
+                  <div className="obsidian-card" style={{ padding: '18px 20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="badge badge-red" style={{ fontSize: '13px' }}>
+                        <span className="pill pill-rose" style={{ fontSize: '12px', padding: '4px 10px' }}>
                           {debugResult.error_type || 'Error Detected'}
                         </span>
                         {debugResult.error_line && (
-                          <span className="badge badge-amber" style={{ fontSize: '12px' }}>
+                          <span className="pill pill-amber" style={{ fontSize: '11px' }}>
                             Line {debugResult.error_line}
+                          </span>
+                        )}
+                        {debugResult.request_id && (
+                          <span className="pill pill-dark font-mono" style={{ fontSize: '10px' }}>
+                            {debugResult.request_id}
                           </span>
                         )}
                       </div>
 
-                      {/* MCP Call Badges */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>MCP Tools:</span>
+                      {/* MCP Badges */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span style={{ fontSize: '10px', color: '#52525b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>MCP Tools:</span>
                         {(debugResult.mcp_calls_made || []).map((tool, i) => (
-                          <span key={i} className="badge badge-blue" style={{ fontSize: '10px', padding: '2px 6px' }}>
+                          <span key={i} className="pill pill-cyan" style={{ fontSize: '10px', padding: '2px 6px' }}>
                             {tool}
                           </span>
                         ))}
@@ -614,98 +701,109 @@ export default function App() {
                     </div>
 
                     <div style={{ marginBottom: '12px' }}>
-                      <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#e2e8f0', marginBottom: '4px' }}>
-                        Root Cause Diagnosis
+                      <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
+                        Root Cause
                       </h4>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                      <p style={{ fontSize: '13.5px', color: '#e4e4e7', lineHeight: 1.6 }}>
                         {debugResult.root_cause || 'Identified runtime logic anomaly.'}
                       </p>
                     </div>
 
                     {debugResult.hypotheses?.length > 0 && (
-                      <div style={{ marginTop: '8px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-dim)' }}>Contributing Factors:</span>
-                        <ul style={{ paddingLeft: '18px', marginTop: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                      <div style={{ marginTop: '10px', borderTop: '1px solid var(--border-hairline)', paddingTop: '10px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '600', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Contributing Factors:
+                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
                           {debugResult.hypotheses.map((h, i) => (
-                            <li key={i}>{h}</li>
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#a1a1aa' }}>
+                              <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                              <span>{h}</span>
+                            </div>
                           ))}
-                        </ul>
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {/* Proposed Corrected Code */}
-                  <div className="glass-panel" style={{ padding: '18px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <FileCode2 size={16} color="var(--accent-cyan)" />
-                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>
-                          Suggested Corrected Code
-                        </span>
+                  {/* Proposed Fix Window */}
+                  <div className="editor-window">
+                    <div className="editor-header">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div className="window-dots">
+                          <div className="window-dot" style={{ backgroundColor: '#ff5f56' }} />
+                          <div className="window-dot" style={{ backgroundColor: '#ffbd2e' }} />
+                          <div className="window-dot" style={{ backgroundColor: '#27c93f' }} />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '6px' }}>
+                          <CheckCircle2 size={13} color="#10b981" />
+                          <span className="font-mono" style={{ fontSize: '12px', color: '#10b981', fontWeight: '600' }}>
+                            corrected_solution.py
+                          </span>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '6px' }}>
                         <button
-                          className="btn-secondary"
+                          className="btn-obsidian"
                           onClick={() => setCode(debugResult.corrected_code)}
-                          title="Apply this fix to the editor"
+                          style={{ fontSize: '11.5px', padding: '4px 10px' }}
                         >
                           Apply to Editor
                         </button>
                         <button
-                          className="btn-secondary"
+                          className="btn-obsidian"
                           onClick={() => handleCopyCode(debugResult.corrected_code)}
+                          style={{ fontSize: '11.5px', padding: '4px 10px' }}
                         >
-                          {copied ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                          {copied ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
                           <span>{copied ? 'Copied' : 'Copy'}</span>
                         </button>
                       </div>
                     </div>
 
                     <pre
-                      className="code-font"
+                      className="font-mono"
                       style={{
-                        backgroundColor: 'var(--bg-input)',
-                        padding: '14px',
-                        borderRadius: '8px',
+                        padding: '16px',
                         fontSize: '13px',
-                        lineHeight: 1.6,
+                        lineHeight: 1.65,
                         overflowX: 'auto',
-                        border: '1px solid var(--border-subtle)',
-                        color: '#93c5fd',
+                        color: '#6ee7b7',
+                        backgroundColor: '#040506',
                       }}
                     >
                       <code>{debugResult.corrected_code}</code>
                     </pre>
 
                     {debugResult.explanation && (
-                      <div style={{ marginTop: '12px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                        <strong style={{ color: '#cbd5e1' }}>Explanation: </strong>
+                      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-hairline)', fontSize: '12.5px', color: '#a1a1aa', backgroundColor: '#07080a' }}>
+                        <strong style={{ color: '#ffffff' }}>Why this works: </strong>
                         {debugResult.explanation}
                       </div>
                     )}
                   </div>
 
-                  {/* Sandboxed Test Validation Outcome */}
-                  <div className="glass-panel" style={{ padding: '18px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <ShieldCheck size={18} color="var(--accent-green)" />
-                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>
-                          Sandboxed Test Validation (MCP run_tests)
+                  {/* Sandboxed Test Outcome Window */}
+                  <div className="editor-window">
+                    <div className="editor-header">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <ShieldCheck size={14} color="#10b981" />
+                        <span className="font-mono" style={{ fontSize: '12px', color: '#e4e4e7' }}>
+                          Sandbox Test Runner (MCP run_tests)
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {debugResult.validation_result?.passed ? (
-                          <span className="badge badge-green">
-                            <CheckCircle2 size={13} /> Tests Passed
+                          <span className="pill pill-emerald" style={{ fontSize: '11px' }}>
+                            <CheckCheck size={12} /> Tests Passed
                           </span>
                         ) : (
-                          <span className="badge badge-red">
-                            <XCircle size={13} /> {debugResult.validation_result?.status?.toUpperCase() || 'FAILED'}
+                          <span className="pill pill-rose" style={{ fontSize: '11px' }}>
+                            <XCircle size={12} /> {debugResult.validation_result?.status?.toUpperCase() || 'FAILED'}
                           </span>
                         )}
                         {debugResult.validation_result?.duration_ms && (
-                          <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                          <span style={{ fontSize: '11px', color: '#71717a' }}>
                             {debugResult.validation_result.duration_ms} ms
                           </span>
                         )}
@@ -713,18 +811,21 @@ export default function App() {
                     </div>
 
                     {debugResult.test_code && (
-                      <div style={{ marginTop: '8px' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>Verification Assertions Executed:</span>
+                      <div style={{ padding: '12px 16px', backgroundColor: '#040506' }}>
+                        <span style={{ fontSize: '10px', color: '#52525b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Executed Assertions:
+                        </span>
                         <pre
-                          className="code-font"
+                          className="font-mono"
                           style={{
-                            backgroundColor: '#090d15',
                             padding: '10px 12px',
                             borderRadius: '6px',
+                            backgroundColor: '#0a0b0d',
+                            border: '1px solid var(--border-hairline)',
                             fontSize: '12px',
-                            marginTop: '4px',
+                            marginTop: '6px',
                             overflowX: 'auto',
-                            color: '#a7f3d0',
+                            color: '#e4e4e7',
                           }}
                         >
                           <code>{debugResult.test_code}</code>
@@ -733,22 +834,22 @@ export default function App() {
                     )}
 
                     {debugResult.validation_result?.stderr && (
-                      <div style={{ marginTop: '10px', padding: '10px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                        <span style={{ fontSize: '11px', color: '#f87171', fontWeight: '600' }}>Sandbox Output / Traceback:</span>
-                        <pre className="code-font" style={{ fontSize: '11px', color: '#fca5a5', marginTop: '4px', whiteSpace: 'pre-wrap' }}>
+                      <div style={{ padding: '10px 16px', backgroundColor: 'rgba(244, 63, 94, 0.08)', borderTop: '1px solid rgba(244, 63, 94, 0.2)' }}>
+                        <span style={{ fontSize: '10px', color: '#fb7185', fontWeight: '700', textTransform: 'uppercase' }}>Stderr Output:</span>
+                        <pre className="font-mono" style={{ fontSize: '11px', color: '#fda4af', marginTop: '4px', whiteSpace: 'pre-wrap' }}>
                           {debugResult.validation_result.stderr}
                         </pre>
                       </div>
                     )}
                   </div>
 
-                  {/* RAG Retrieved Source References */}
+                  {/* Qdrant RAG Citations */}
                   {debugResult.rag_references?.length > 0 && (
-                    <div className="glass-panel" style={{ padding: '18px' }}>
+                    <div className="obsidian-card" style={{ padding: '18px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                        <Database size={16} color="var(--accent-purple)" />
-                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>
-                          Qdrant RAG Verified Knowledge Citations
+                        <Database size={15} color="#8b5cf6" />
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#ffffff' }}>
+                          Qdrant Verified Knowledge Base References
                         </span>
                       </div>
 
@@ -759,19 +860,19 @@ export default function App() {
                             style={{
                               padding: '12px 14px',
                               borderRadius: '8px',
-                              backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: '#07080a',
+                              border: '1px solid var(--border-hairline)',
                             }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                               <span style={{ fontSize: '13px', fontWeight: '600', color: '#c084fc' }}>
                                 {ref.title || ref.error_type}
                               </span>
-                              <span className="badge badge-purple" style={{ fontSize: '10px' }}>
-                                Match: {Math.round((ref.score || 0.8) * 100)}%
+                              <span className="pill pill-violet" style={{ fontSize: '10px' }}>
+                                {Math.round((ref.score || 0.8) * 100)}% Match
                               </span>
                             </div>
-                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                            <p style={{ fontSize: '12px', color: '#a1a1aa', lineHeight: 1.5 }}>
                               {ref.root_cause || ref.snippet}
                             </p>
                           </div>
@@ -780,9 +881,9 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Explicit Opt-in: Save to Knowledge Base Button */}
+                  {/* Opt-in Save Card */}
                   <div
-                    className="glass-panel"
+                    className="obsidian-card"
                     style={{
                       padding: '16px 20px',
                       display: 'flex',
@@ -790,38 +891,41 @@ export default function App() {
                       justifyContent: 'space-between',
                       flexWrap: 'wrap',
                       gap: '12px',
-                      borderColor: savedSuccess ? 'rgba(16, 185, 129, 0.4)' : 'var(--border-subtle)',
+                      borderColor: savedSuccess ? 'rgba(16, 185, 129, 0.4)' : 'var(--border-hairline)',
+                      backgroundColor: savedSuccess ? 'rgba(16, 185, 129, 0.04)' : 'var(--black-card)',
                     }}
                   >
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <BookmarkPlus size={16} color={savedSuccess ? '#10b981' : 'var(--accent-cyan)'} />
-                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>
-                          Save Verified Solution to Knowledge Base?
+                        <BookmarkPlus size={15} color={savedSuccess ? '#10b981' : '#a1a1aa'} />
+                        <span style={{ fontSize: '13.5px', fontWeight: '600', color: '#ffffff' }}>
+                          Save Solution to Knowledge Base?
                         </span>
                       </div>
-                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        Opt-in only. Automatic privacy sanitizer scrubs API keys, passwords, and sensitive tokens.
+                      <p style={{ fontSize: '11.5px', color: '#71717a', marginTop: '2px' }}>
+                        Opt-in only. Automatic privacy scrubber redacts API keys, passwords, and tokens before saving to Qdrant.
                       </p>
                     </div>
 
                     <button
-                      className="btn-secondary"
+                      className="btn-obsidian"
                       onClick={handleSaveToKnowledge}
                       disabled={savedSuccess}
                       style={{
-                        background: savedSuccess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(56, 189, 248, 0.1)',
-                        borderColor: savedSuccess ? '#10b981' : 'var(--accent-cyan)',
-                        color: savedSuccess ? '#34d399' : 'var(--accent-cyan)',
+                        backgroundColor: savedSuccess ? 'rgba(16, 185, 129, 0.15)' : '#141518',
+                        borderColor: savedSuccess ? '#10b981' : 'var(--border-hairline)',
+                        color: savedSuccess ? '#34d399' : '#ffffff',
                       }}
                     >
                       {savedSuccess ? (
                         <>
-                          <Check size={14} /> Saved to Qdrant
+                          <Check size={13} color="#10b981" />
+                          <span>Indexed in Qdrant</span>
                         </>
                       ) : (
                         <>
-                          <BookmarkPlus size={14} /> Add to RAG Knowledge
+                          <BookmarkPlus size={13} color="#10b981" />
+                          <span>Add to Knowledge Base</span>
                         </>
                       )}
                     </button>
@@ -832,17 +936,19 @@ export default function App() {
           </div>
         )}
 
+        {/* ============================================================== */}
         {/* TAB 2: KNOWLEDGE BASE VIEW */}
+        {/* ============================================================== */}
         {activeTab === 'knowledge' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div className="glass-panel" style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div className="obsidian-card" style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
               <div>
-                <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Database size={20} color="var(--accent-purple)" />
+                <h2 style={{ fontSize: '17px', fontWeight: '800', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Database size={19} color="#8b5cf6" />
                   Qdrant Vector Knowledge Base
                 </h2>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Total verified debugging cases indexed: <strong>{knowledgeItems.length}</strong> (Local embedded Qdrant instance)
+                <p style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>
+                  Total verified debugging cases indexed: <strong style={{ color: '#ffffff' }}>{knowledgeItems.length}</strong> (Local embedded Qdrant instance)
                 </p>
               </div>
 
@@ -853,63 +959,64 @@ export default function App() {
                   value={knowledgeSearch}
                   onChange={(e) => setKnowledgeSearch(e.target.value)}
                   style={{
-                    backgroundColor: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: '#07080a',
+                    border: '1px solid var(--border-hairline)',
                     borderRadius: '8px',
                     padding: '8px 14px',
-                    color: '#fff',
-                    fontSize: '13px',
-                    width: '280px',
+                    color: '#ffffff',
+                    fontSize: '12.5px',
+                    width: '300px',
                     outline: 'none',
                   }}
                 />
                 <button
-                  className="btn-secondary"
+                  className="btn-obsidian"
                   onClick={() => {
                     fetchKnowledge();
                     fetchHealth();
                   }}
                 >
-                  <RefreshCw size={14} /> Refresh
+                  <RefreshCw size={13} /> Refresh
                 </button>
               </div>
             </div>
 
             {/* Knowledge Cards Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))', gap: '16px' }}>
               {filteredKnowledge.map((item, idx) => (
-                <div key={idx} className="glass-panel" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div key={idx} className="obsidian-card obsidian-card-interactive" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span className="badge badge-purple" style={{ fontSize: '11px' }}>
+                    <span className="pill pill-violet" style={{ fontSize: '11px' }}>
                       {item.error_type}
                     </span>
-                    <span className="badge badge-blue" style={{ fontSize: '10px' }}>
+                    <span className="pill pill-dark" style={{ fontSize: '10px' }}>
                       {item.category || 'Python'}
                     </span>
                   </div>
 
-                  <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#f1f5f9' }}>
+                  <h3 style={{ fontSize: '14.5px', fontWeight: '700', color: '#ffffff' }}>
                     {item.title}
                   </h3>
 
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5, flex: 1 }}>
+                  <p style={{ fontSize: '12.5px', color: '#a1a1aa', lineHeight: 1.55, flex: 1 }}>
                     {item.root_cause}
                   </p>
 
                   {item.corrected_code && (
-                    <div style={{ marginTop: '8px' }}>
-                      <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>Verified Fix:</span>
+                    <div style={{ marginTop: '6px' }}>
+                      <span style={{ fontSize: '10px', color: '#52525b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Verified Fix:</span>
                       <pre
-                        className="code-font"
+                        className="font-mono"
                         style={{
-                          backgroundColor: '#090d15',
-                          padding: '8px 10px',
+                          backgroundColor: '#040506',
+                          border: '1px solid var(--border-hairline)',
+                          padding: '10px 12px',
                           borderRadius: '6px',
                           fontSize: '11.5px',
                           marginTop: '4px',
                           overflowX: 'auto',
-                          maxHeight: '120px',
-                          color: '#93c5fd',
+                          maxHeight: '130px',
+                          color: '#6ee7b7',
                         }}
                       >
                         <code>{item.corrected_code}</code>
@@ -917,10 +1024,10 @@ export default function App() {
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
                     <button
-                      className="btn-secondary"
-                      style={{ fontSize: '11px', padding: '4px 10px' }}
+                      className="btn-obsidian"
+                      style={{ fontSize: '11.5px', padding: '4px 10px' }}
                       onClick={() => {
                         if (item.buggy_code) setCode(item.buggy_code);
                         if (item.title) setErrorMessage(item.title);
@@ -936,37 +1043,39 @@ export default function App() {
           </div>
         )}
 
+        {/* ============================================================== */}
         {/* TAB 3: HISTORY LOG */}
+        {/* ============================================================== */}
         {activeTab === 'history' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <div className="glass-panel" style={{ padding: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div className="obsidian-card" style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <History size={20} color="var(--accent-cyan)" />
+                <h2 style={{ fontSize: '17px', fontWeight: '800', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <History size={19} color="#06b6d4" />
                   Debugging Session History
                 </h2>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Sessions are maintained separately from the reusable RAG knowledge base.
+                <p style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>
+                  Sessions are stored separately from reusable vector knowledge for maximum privacy.
                 </p>
               </div>
 
               {historyItems.length > 0 && (
-                <button className="btn-secondary" onClick={handleClearHistory} style={{ color: '#f87171' }}>
-                  <Trash2 size={14} /> Clear History
+                <button className="btn-obsidian" onClick={handleClearHistory} style={{ color: '#f43f5e' }}>
+                  <Trash2 size={13} /> Clear History
                 </button>
               )}
             </div>
 
             {historyItems.length === 0 ? (
-              <div className="glass-panel" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <div className="obsidian-card" style={{ padding: '56px', textAlign: 'center', color: '#71717a' }}>
                 No debugging sessions recorded yet. Run a session in the Debug Studio!
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {historyItems.map((item, idx) => (
                   <div
                     key={idx}
-                    className="glass-panel"
+                    className="obsidian-card obsidian-card-interactive"
                     style={{
                       padding: '16px 20px',
                       display: 'flex',
@@ -979,44 +1088,45 @@ export default function App() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                       <div
                         style={{
-                          width: '36px',
-                          height: '36px',
+                          width: '34px',
+                          height: '34px',
                           borderRadius: '8px',
-                          backgroundColor: item.validation_result?.passed ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          backgroundColor: item.validation_result?.passed ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
+                          border: `1px solid ${item.validation_result?.passed ? 'rgba(16, 185, 129, 0.25)' : 'rgba(244, 63, 94, 0.25)'}`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                         }}
                       >
                         {item.validation_result?.passed ? (
-                          <CheckCircle2 size={18} color="#10b981" />
+                          <CheckCircle2 size={16} color="#10b981" />
                         ) : (
-                          <XCircle size={18} color="#ef4444" />
+                          <XCircle size={16} color="#f43f5e" />
                         )}
                       </div>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>
+                          <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#ffffff' }}>
                             {item.error_type || 'Python Issue'}
                           </span>
-                          <span className="badge badge-purple" style={{ fontSize: '10px' }}>
+                          <span className="pill pill-violet" style={{ fontSize: '10px' }}>
                             {item.status}
                           </span>
                         </div>
-                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        <p style={{ fontSize: '12px', color: '#71717a', marginTop: '2px' }}>
                           {item.summary || item.root_cause || 'Debugging session'}
                         </p>
                       </div>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <span style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ fontSize: '11px', color: '#52525b', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <Clock size={12} />
                         {new Date(item.timestamp).toLocaleTimeString()}
                       </span>
                       <button
-                        className="btn-secondary"
-                        style={{ fontSize: '12px' }}
+                        className="btn-obsidian"
+                        style={{ fontSize: '11.5px' }}
                         onClick={() => {
                           setCode(item.code);
                           setErrorMessage(item.error_message || '');
@@ -1024,7 +1134,7 @@ export default function App() {
                           setActiveTab('studio');
                         }}
                       >
-                        Inspect in Studio <ChevronRight size={14} />
+                        Inspect in Studio <ChevronRight size={13} />
                       </button>
                     </div>
                   </div>
@@ -1035,18 +1145,18 @@ export default function App() {
         )}
       </main>
 
-      {/* Footer */}
+      {/* Sleek Minimal Footer */}
       <footer
         style={{
-          borderTop: '1px solid var(--border-subtle)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
           padding: '16px 24px',
           textAlign: 'center',
-          fontSize: '12px',
-          color: 'var(--text-dim)',
-          backgroundColor: 'rgba(7, 9, 14, 0.95)',
+          fontSize: '11.5px',
+          color: '#52525b',
+          backgroundColor: '#020203',
         }}
       >
-        DevFix AI • Multi-Agent Autonomous Python Debugger • Powered by LangGraph, Groq, Qdrant & MCP
+        DevFix AI • Pitch Black Obsidian Developer Dashboard • Powered by LangGraph, Groq, Qdrant & Python MCP
       </footer>
     </div>
   );

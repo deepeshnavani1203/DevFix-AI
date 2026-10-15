@@ -5,6 +5,7 @@ from mcp_server.server import (
     read_error_log as mcp_read_error_log,
     search_debug_knowledge as mcp_search_debug_knowledge,
     run_tests as mcp_run_tests,
+    execute_code_safely as mcp_execute_code_safely,
 )
 
 logger = logging.getLogger("mcp_client")
@@ -34,5 +35,10 @@ class DevFixMCPClient:
         """Invoke MCP sandboxed test execution tool."""
         logger.info("MCP Client invoking tool: run_tests")
         return mcp_run_tests(solution_code, test_code, timeout_seconds)
+
+    def execute_code_safely(self, code: str, timeout_seconds: float = 2.0) -> Dict[str, Any]:
+        """Invoke MCP safe dynamic code execution tool."""
+        logger.info("MCP Client invoking tool: execute_code_safely")
+        return mcp_execute_code_safely(code, timeout_seconds)
 
 mcp_client = DevFixMCPClient()

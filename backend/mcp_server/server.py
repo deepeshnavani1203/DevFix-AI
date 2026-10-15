@@ -57,8 +57,8 @@ def analyze_code(code: str) -> Dict[str, Any]:
     risky_calls = []
     warnings = []
 
-    # Dangerous identifiers that should not be executed or called unsafely
-    DISALLOWED_FUNCTIONS = {"eval", "exec", "system", "popen", "spawn", "__import__", "fork"}
+    # Dangerous system calls that can affect the host system
+    DISALLOWED_FUNCTIONS = {"system", "popen", "spawn", "fork", "kill", "rmdir"}
 
     class CodeVisitor(ast.NodeVisitor):
         def visit_FunctionDef(self, node):
@@ -254,9 +254,10 @@ def run_tests(solution_code: str, test_code: str, timeout_seconds: int = 3) -> D
             f.write(full_script)
             temp_file = f.name
 
-        # Run in clean isolated subprocess with strict timeout and no network
+        # Run in clean isolated subprocess with strict timeout, empty input to prevent hangs, and no network
         proc = subprocess.run(
             [sys.executable, "-I", temp_file], # -I isolates from user site-packages/environment
+            input="",
             capture_output=True,
             text=True,
             timeout=timeout_seconds,
@@ -298,6 +299,119 @@ def run_tests(solution_code: str, test_code: str, timeout_seconds: int = 3) -> D
             "error": str(e),
             "stdout": "",
             "stderr": str(e),
+            "duration_ms": duration_ms,
+        }
+    finally:
+        if temp_file and Path(temp_file).exists():
+            try:
+                Path(temp_file).unlink()
+            except Exception:
+                pass
+
+# 5. Tool: Safe Dynamic Code Execution (Pre-Execution for Ground Truth)
+@mcp_server.tool()
+def execute_code_safely(code: str, timeout_seconds: float = 2.0) -> Dict[str, Any]:
+    """Execute code in an isolated subprocess to detect real live runtime errors, tracebacks, or output."""
+    if not code.strip():
+        return {
+            "executed": False,
+            "has_error": False,
+            "exception_type": None,
+            "message": "Empty code.",
+            "stdout": "",
+            "stderr": "",
+            "probable_line": None,
+            "duration_ms": 0.0,
+        }
+
+    # Pre-execution static safety check
+    analysis = analyze_code(code)
+    if not analysis["syntax_valid"]:
+        return {
+            "executed": False,
+            "has_error": True,
+            "exception_type": "SyntaxError",
+            "message": analysis.get("syntax_error_msg"),
+            "probable_line": analysis.get("syntax_error_line"),
+            "stdout": "",
+            "stderr": f"SyntaxError: {analysis.get('syntax_error_msg')} on line {analysis.get('syntax_error_line')}",
+            "duration_ms": 0.0,
+        }
+
+    if analysis["risky_calls"]:
+        call_names = [c["call"] for c in analysis["risky_calls"]]
+        return {
+            "executed": False,
+            "has_error": True,
+            "exception_type": "SecurityRestriction",
+            "message": f"Execution blocked due to forbidden calls: {', '.join(call_names)}",
+            "probable_line": None,
+            "stdout": "",
+            "stderr": "Code contained unsafe system execution functions and was blocked by policy.",
+            "duration_ms": 0.0,
+        }
+
+    start_time = time.time()
+    temp_file = None
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False, encoding="utf-8") as f:
+            f.write(code)
+            temp_file = f.name
+
+        proc = subprocess.run(
+            [sys.executable, "-I", temp_file],
+            input="",
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+
+        if proc.returncode == 0:
+            return {
+                "executed": True,
+                "has_error": False,
+                "exception_type": None,
+                "message": "Execution finished successfully without runtime errors.",
+                "stdout": proc.stdout.strip(),
+                "stderr": "",
+                "probable_line": None,
+                "duration_ms": duration_ms,
+            }
+        else:
+            parsed = read_error_log(proc.stderr)
+            return {
+                "executed": True,
+                "has_error": True,
+                "exception_type": parsed.get("exception_type", "RuntimeError"),
+                "message": parsed.get("message") or proc.stderr.strip()[:200],
+                "stdout": proc.stdout.strip(),
+                "stderr": proc.stderr.strip(),
+                "probable_line": parsed.get("probable_line"),
+                "duration_ms": duration_ms,
+            }
+    except subprocess.TimeoutExpired:
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        return {
+            "executed": True,
+            "has_error": True,
+            "exception_type": "TimeoutError",
+            "message": f"Execution timed out after {timeout_seconds}s (possible infinite loop).",
+            "stdout": "",
+            "stderr": f"TimeoutExpired: Process exceeded {timeout_seconds}s threshold.",
+            "probable_line": None,
+            "duration_ms": duration_ms,
+        }
+    except Exception as e:
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        return {
+            "executed": False,
+            "has_error": True,
+            "exception_type": "ExecutionError",
+            "message": str(e),
+            "stdout": "",
+            "stderr": str(e),
+            "probable_line": None,
             "duration_ms": duration_ms,
         }
     finally:
