@@ -145,6 +145,9 @@ def debug_code(request: DebugRequest):
             "summary": result.get("error_summary", ""),
             "error_line": result.get("error_line"),
             "hypotheses": result.get("hypotheses", []),
+            "issues": result.get("issues", []),
+            "analysis_mode": result.get("analysis_mode", "static_analysis"),
+            "execution_result": result.get("execution_result", {}),
             "corrected_code": result.get("corrected_code", ""),
             "explanation": result.get("explanation", ""),
             "test_code": result.get("test_code", ""),
@@ -165,29 +168,7 @@ def debug_code(request: DebugRequest):
 
     except Exception as e:
         logger.error(f"[{request_id}] Debugging error: {e}")
-        # Robust fallback response so the user's request never fails with a 500 error
-        fallback_record = {
-            "id": request_id,
-            "request_id": request_id,
-            "timestamp": datetime.now().isoformat(),
-            "code": request.code,
-            "error_message": request.error_message,
-            "error_type": "RecoveredError",
-            "root_cause": f"Handled with defensive guard clauses: {str(e)}",
-            "summary": "Code evaluated safely without breaking execution flow.",
-            "error_line": 1,
-            "hypotheses": ["Applied robust defensive guard against unhandled exception"],
-            "corrected_code": request.code,
-            "explanation": "Processed with resilient error recovery.",
-            "test_code": "# Verification test\nassert True",
-            "validation_result": {"passed": True, "status": "passed", "duration_ms": 1.0},
-            "rag_references": [],
-            "mcp_calls_made": ["analyze_code"],
-            "workflow_logs": [f"[{request_id}] Recovered safely from notice: {str(e)}"],
-            "status": "completed",
-        }
-        DEBUG_HISTORY.insert(0, fallback_record)
-        return fallback_record
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}") from e
 
 @app.post("/api/debug/upload")
 async def debug_code_file(

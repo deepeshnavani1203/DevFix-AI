@@ -1,5 +1,6 @@
 import sys
 import ast
+import builtins
 import re
 import time
 import subprocess
@@ -58,7 +59,7 @@ def analyze_code(code: str) -> Dict[str, Any]:
     warnings = []
 
     # Dangerous system calls that can affect the host system
-    DISALLOWED_FUNCTIONS = {"system", "popen", "spawn", "fork", "kill", "rmdir"}
+    DISALLOWED_FUNCTIONS = {"eval", "exec", "system", "popen", "spawn", "fork", "kill", "rmdir"}
 
     class CodeVisitor(ast.NodeVisitor):
         def visit_FunctionDef(self, node):
@@ -127,6 +128,89 @@ def analyze_code(code: str) -> Dict[str, Any]:
     visitor = CodeVisitor()
     visitor.visit(tree)
 
+    issues = []
+    known_names = set(dir(builtins))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            known_names.add(node.id)
+        elif isinstance(node, ast.arg):
+            known_names.add(node.arg)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            known_names.add(node.name)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                known_names.add(alias.asname or alias.name.split(".")[0])
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id not in known_names:
+            issues.append({
+                "error_type": "NameError",
+                "line": node.lineno,
+                "severity": "high",
+                "confirmed": False,
+                "explanation": f"'{node.id}' is read but has no assignment, import, parameter, or builtin binding.",
+                "suggested_fix": f"Define '{node.id}' before use or correct the name to the intended variable.",
+                "evidence": f"Unbound name load '{node.id}' at line {node.lineno}.",
+            })
+
+        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod)):
+            if isinstance(node.right, ast.Constant) and node.right.value == 0:
+                issues.append({
+                    "error_type": "ZeroDivisionError",
+                    "line": node.lineno,
+                    "severity": "high",
+                    "confirmed": False,
+                    "explanation": "The divisor is the literal zero, so evaluating this expression raises ZeroDivisionError.",
+                    "suggested_fix": "Use a non-zero divisor or handle the zero case before dividing.",
+                    "evidence": f"Literal zero divisor in a {type(node.op).__name__} expression at line {node.lineno}.",
+                })
+
+    empty_input_calls = []
+    division_functions = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            parameters = {arg.arg for arg in node.args.args}
+            for child in ast.walk(node):
+                if isinstance(child, ast.BinOp) and isinstance(child.op, ast.Div):
+                    divisor = child.right
+                    if (isinstance(divisor, ast.Call) and isinstance(divisor.func, ast.Name)
+                            and divisor.func.id == "len" and divisor.args
+                            and isinstance(divisor.args[0], ast.Name)):
+                        divisor_name = divisor.args[0].id
+                        if divisor_name in parameters:
+                            argument_index = [arg.arg for arg in node.args.args].index(divisor_name)
+                        elif len(node.args.args) == 1:
+                            argument_index = 0
+                        else:
+                            continue
+                        division_functions[node.name] = (divisor_name, child.lineno, argument_index)
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
+            continue
+        definition = division_functions.get(node.func.id)
+        if definition:
+            parameter, line, argument_index = definition
+            function = next((item for item in ast.walk(tree)
+                             if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+                             and item.name == node.func.id), None)
+            if function:
+                if (len(node.args) > argument_index and isinstance(node.args[argument_index], ast.List)
+                        and not node.args[argument_index].elts):
+                    empty_input_calls.append((node.func.id, parameter, line))
+
+    for function_name, parameter, line in empty_input_calls:
+        explanation = f"'{function_name}' divides by len({parameter}) and is called with an empty list. This division may be masked by an earlier error on that call."
+        issues.append({
+            "error_type": "ZeroDivisionError",
+            "line": line,
+            "severity": "medium",
+            "confirmed": False,
+            "explanation": explanation,
+            "suggested_fix": f"Handle an empty '{parameter}' value before dividing.",
+            "evidence": f"Call to {function_name} at an empty-list argument can make len({parameter}) zero.",
+        })
+
     return {
         "syntax_valid": True,
         "syntax_error_msg": None,
@@ -136,6 +220,7 @@ def analyze_code(code: str) -> Dict[str, Any]:
         "imports": imports,
         "risky_calls": risky_calls,
         "warnings": warnings,
+        "issues": issues,
     }
 
 # 2. Tool: Traceback and Error Log Parsing

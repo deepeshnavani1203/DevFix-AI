@@ -16,6 +16,9 @@ class DebugState(TypedDict, total=False):
     error_summary: str
     error_line: Optional[int]
     hypotheses: List[str]
+    issues: List[Dict[str, Any]]
+    execution_result: Dict[str, Any]
+    analysis_mode: str
 
     # Agent 2 (RAG Retrieval) outputs
     rag_references: List[Dict[str, Any]]

@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node --test src/codeDiff.test.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "diff": "^9.0.0",
     "lucide-react": "^1.57.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

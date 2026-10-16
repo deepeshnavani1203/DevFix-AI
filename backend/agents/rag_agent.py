@@ -17,6 +17,13 @@ def rag_debugging_agent(state: DebugState) -> Dict[str, Any]:
     mcp_calls = list(state.get("mcp_calls_made", []))
     logs = list(state.get("workflow_logs", []))
 
+    if not state.get("issues"):
+        return {
+            "rag_references": [],
+            "mcp_calls_made": mcp_calls,
+            "workflow_logs": logs,
+        }
+
     logger.info(f"[{req_id}] Agent 2: Querying Qdrant for supporting knowledge on '{error_type}'")
     logs.append(f"[{req_id}] Agent 2: Querying Qdrant knowledge base for '{error_type}'...")
 

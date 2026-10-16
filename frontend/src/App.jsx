@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { buildLineDiff } from './codeDiff.js';
 import {
   Bug,
   Code2,
   CheckCircle2,
   XCircle,
   Clock,
-  Sparkles,
   Database,
   History,
   Upload,
@@ -13,13 +13,11 @@ import {
   Check,
   ShieldCheck,
   Cpu,
-  Layers,
   ArrowRight,
   Terminal,
   AlertTriangle,
   RefreshCw,
   Trash2,
-  FileCode2,
   ChevronRight,
   BookmarkPlus,
   Play,
@@ -41,12 +39,6 @@ const SAMPLE_BUGS = [
 # Test with empty list
 data = []
 print(calculate_average(data))`,
-    error: `Traceback (most recent call last):
-  File "calc.py", line 6, in <module>
-    print(calculate_average(data))
-  File "calc.py", line 3, in calculate_average
-    return total / len(scores)
-ZeroDivisionError: division by zero`
   },
   {
     name: 'Mutable Default',
@@ -58,7 +50,6 @@ ZeroDivisionError: division by zero`
 
 print(register_user("Alice"))
 print(register_user("Bob")) # Unexpectedly retains Alice!`,
-    error: `LogicError: Default argument 'roles' retains state across multiple function calls.`
   },
   {
     name: 'Dict KeyError',
@@ -69,12 +60,6 @@ print(register_user("Bob")) # Unexpectedly retains Alice!`,
 
 user = {'name': 'Charlie', 'active': True}
 print(get_user_email(user))`,
-    error: `Traceback (most recent call last):
-  File "user.py", line 5, in <module>
-    print(get_user_email(user))
-  File "user.py", line 2, in get_user_email
-    return profile['email']
-KeyError: 'email'`
   },
   {
     name: 'UnboundLocal',
@@ -87,19 +72,13 @@ def increment():
     return counter
 
 increment()`,
-    error: `Traceback (most recent call last):
-  File "scope.py", line 7, in <module>
-    increment()
-  File "scope.py", line 4, in increment
-    counter += 1
-UnboundLocalError: cannot access local variable 'counter' where it is not associated with a value`
   }
 ];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('studio'); // 'studio' | 'knowledge' | 'history'
-  const [code, setCode] = useState(SAMPLE_BUGS[0].code);
-  const [errorMessage, setErrorMessage] = useState(SAMPLE_BUGS[0].error);
+  const [code, setCode] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState('');
   const [debugResult, setDebugResult] = useState(null);
@@ -112,12 +91,6 @@ export default function App() {
   const [knowledgeItems, setKnowledgeItems] = useState([]);
   const [knowledgeSearch, setKnowledgeSearch] = useState('');
   const [historyItems, setHistoryItems] = useState([]);
-
-  useEffect(() => {
-    fetchHealth();
-    fetchKnowledge();
-    fetchHistory();
-  }, []);
 
   const fetchHealth = async () => {
     try {
@@ -155,12 +128,22 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchHealth();
+      fetchKnowledge();
+      fetchHistory();
+    });
+  }, []);
+
   const handleDebug = async () => {
     if (!code.trim()) {
       setApiError('Please enter Python code to analyze.');
       return;
     }
 
+    const submittedCode = code;
+    const submittedErrorMessage = errorMessage;
     setIsLoading(true);
     setApiError(null);
     setDebugResult(null);
@@ -180,8 +163,8 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code: code,
-          error_message: errorMessage,
+          code: submittedCode,
+          error_message: submittedErrorMessage,
         }),
       });
 
@@ -274,6 +257,9 @@ export default function App() {
       item.root_cause?.toLowerCase().includes(q)
     );
   });
+  const diffRows = debugResult
+    ? buildLineDiff(debugResult.code || code, debugResult.corrected_code || debugResult.code || code)
+    : [];
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#000000' }}>
@@ -431,7 +417,7 @@ export default function App() {
                       style={{ padding: '4px 10px', fontSize: '11.5px', gap: '6px' }}
                       onClick={() => {
                         setCode(sample.code);
-                        setErrorMessage(sample.error);
+                        setErrorMessage('');
                         setDebugResult(null);
                       }}
                     >
@@ -670,60 +656,34 @@ export default function App() {
 
               {debugResult && !isLoading && (
                 <>
-                  {/* Diagnostic Diagnosis Card */}
                   <div className="obsidian-card" style={{ padding: '18px 20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="pill pill-rose" style={{ fontSize: '12px', padding: '4px 10px' }}>
-                          {debugResult.error_type || 'Error Detected'}
-                        </span>
-                        {debugResult.error_line && (
-                          <span className="pill pill-amber" style={{ fontSize: '11px' }}>
-                            Line {debugResult.error_line}
-                          </span>
-                        )}
-                        {debugResult.request_id && (
-                          <span className="pill pill-dark font-mono" style={{ fontSize: '10px' }}>
-                            {debugResult.request_id}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* MCP Badges */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <span style={{ fontSize: '10px', color: '#52525b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>MCP Tools:</span>
-                        {(debugResult.mcp_calls_made || []).map((tool, i) => (
-                          <span key={i} className="pill pill-cyan" style={{ fontSize: '10px', padding: '2px 6px' }}>
-                            {tool}
-                          </span>
-                        ))}
-                      </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '12px' }}>
+                      <strong style={{ color: debugResult.issues?.length ? '#fda4af' : '#6ee7b7' }}>
+                        {debugResult.validation_result?.passed && debugResult.validation_result?.tests_configured
+                          ? 'Status: Tests Passed'
+                          : debugResult.issues?.length ? `${debugResult.issues.length} issue(s) detected` : 'Status: No issues detected'}
+                      </strong>
+                      <span className="pill pill-dark">{debugResult.analysis_mode === 'static_analysis_and_execution' ? 'Static + execution' : 'Static analysis'}</span>
                     </div>
-
-                    <div style={{ marginBottom: '12px' }}>
-                      <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
-                        Root Cause
-                      </h4>
-                      <p style={{ fontSize: '13.5px', color: '#e4e4e7', lineHeight: 1.6 }}>
-                        {debugResult.root_cause || 'Identified runtime logic anomaly.'}
-                      </p>
-                    </div>
-
-                    {debugResult.hypotheses?.length > 0 && (
-                      <div style={{ marginTop: '10px', borderTop: '1px solid var(--border-hairline)', paddingTop: '10px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: '600', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                          Contributing Factors:
-                        </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
-                          {debugResult.hypotheses.map((h, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#a1a1aa' }}>
-                              <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                              <span>{h}</span>
-                            </div>
-                          ))}
+                    <p style={{ fontSize: '13px', color: '#cbd5d1', lineHeight: 1.6 }}>
+                      {debugResult.validation_result?.passed && debugResult.validation_result?.tests_configured
+                        ? 'Your code executed successfully and all configured tests passed.'
+                        : debugResult.issues?.length ? debugResult.summary : 'Your Python code passed the available static checks. No definite errors were detected.'}
+                    </p>
+                    {debugResult.issues?.map((issue, index) => (
+                      <div key={`${issue.error_type}-${issue.line}-${index}`} style={{ padding: '12px 0', borderTop: '1px solid var(--border-hairline)', marginTop: '10px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', alignItems: 'center', marginBottom: '6px' }}>
+                          <strong style={{ color: '#fda4af' }}>{issue.error_type}</strong>
+                          {issue.line && <span className="pill pill-amber">Line {issue.line}</span>}
+                          <span className="pill pill-dark">{issue.confirmed ? 'Confirmed' : 'Possible'}</span>
+                          <span className="pill pill-dark">{issue.severity}</span>
                         </div>
+                        <p style={{ color: '#d4d4d8', fontSize: '12.5px', lineHeight: 1.55 }}>{issue.explanation}</p>
+                        {issue.suggested_fix && <p style={{ color: '#a1a1aa', fontSize: '12px', marginTop: '5px' }}>Suggested fix: {issue.suggested_fix}</p>}
+                        {issue.evidence && <code style={{ display: 'block', color: '#71717a', fontSize: '11px', marginTop: '5px' }}>{issue.evidence}</code>}
                       </div>
-                    )}
+                    ))}
+                    {debugResult.request_id && <span className="pill pill-dark font-mono" style={{ marginTop: '8px' }}>{debugResult.request_id}</span>}
                   </div>
 
                   {/* Proposed Fix Window */}
@@ -745,10 +705,14 @@ export default function App() {
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button
                           className="btn-obsidian"
-                          onClick={() => setCode(debugResult.corrected_code)}
+                          onClick={() => {
+                            setCode(debugResult.corrected_code);
+                            setErrorMessage('');
+                            setApiError(null);
+                          }}
                           style={{ fontSize: '11.5px', padding: '4px 10px' }}
                         >
-                          Apply to Editor
+                          Apply Fix
                         </button>
                         <button
                           className="btn-obsidian"
@@ -756,24 +720,28 @@ export default function App() {
                           style={{ fontSize: '11.5px', padding: '4px 10px' }}
                         >
                           {copied ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
-                          <span>{copied ? 'Copied' : 'Copy'}</span>
+                          <span>{copied ? 'Copied' : 'Copy Fix'}</span>
                         </button>
                       </div>
                     </div>
 
-                    <pre
-                      className="font-mono"
-                      style={{
-                        padding: '16px',
-                        fontSize: '13px',
-                        lineHeight: 1.65,
-                        overflowX: 'auto',
-                        color: '#6ee7b7',
-                        backgroundColor: '#040506',
-                      }}
-                    >
-                      <code>{debugResult.corrected_code}</code>
-                    </pre>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', overflowX: 'auto' }}>
+                      {[['Original', 'original'], ['Corrected', 'corrected']].map(([title, side]) => (
+                        <section key={side} style={{ minWidth: 280, borderRight: side === 'original' ? '1px solid var(--border-hairline)' : 0 }}>
+                          <div style={{ padding: '8px 12px', color: '#a1a1aa', fontSize: '11px', borderBottom: '1px solid var(--border-hairline)' }}>{title}</div>
+                          <pre className="font-mono" style={{ margin: 0, padding: '8px 0', fontSize: '12px', lineHeight: 1.6, overflowX: 'auto', backgroundColor: '#040506' }}>
+                            {diffRows.map((row, index) => {
+                              const line = side === 'original' ? row.original : row.corrected;
+                              const lineNumber = side === 'original' ? row.originalLine : row.correctedLine;
+                              const changed = row.type !== 'context';
+                              const foreground = row.type === 'removed' ? '#fda4af' : row.type === 'added' ? '#6ee7b7' : '#e4e4e7';
+                              const background = row.type === 'removed' ? 'rgba(244, 63, 94, 0.12)' : row.type === 'added' ? 'rgba(16, 185, 129, 0.12)' : row.type === 'modified' ? 'rgba(234, 179, 8, 0.10)' : 'transparent';
+                              return <div key={`${row.type}-${index}`} style={{ display: 'flex', minHeight: '1.6em', whiteSpace: 'pre', color: foreground, backgroundColor: background }}><span style={{ width: 42, flex: '0 0 42px', paddingRight: 8, textAlign: 'right', color: changed ? foreground : '#52525b', userSelect: 'none' }}>{lineNumber ?? ''}</span><code style={{ paddingRight: 12 }}>{line ?? ''}</code></div>;
+                            })}
+                          </pre>
+                        </section>
+                      ))}
+                    </div>
 
                     {debugResult.explanation && (
                       <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-hairline)', fontSize: '12.5px', color: '#a1a1aa', backgroundColor: '#07080a' }}>
@@ -793,9 +761,13 @@ export default function App() {
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {debugResult.validation_result?.passed ? (
+                        {debugResult.validation_result?.passed && debugResult.validation_result?.tests_configured ? (
                           <span className="pill pill-emerald" style={{ fontSize: '11px' }}>
                             <CheckCheck size={12} /> Tests Passed
+                          </span>
+                        ) : !debugResult.validation_result?.tests_configured ? (
+                          <span className="pill pill-dark" style={{ fontSize: '11px' }}>
+                            {debugResult.execution_result?.executed ? 'Execution completed' : 'Static analysis only'}
                           </span>
                         ) : (
                           <span className="pill pill-rose" style={{ fontSize: '11px' }}>

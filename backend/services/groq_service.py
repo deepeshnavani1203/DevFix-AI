@@ -31,15 +31,15 @@ def clean_json_response(raw_text: str) -> Dict[str, Any]:
             return default
 
         return {
-            "error_type": extract_field("error_type", "PythonError"),
+            "error_type": None,
             "error_line": None,
-            "root_cause": extract_field("root_cause", "Issue detected in Python execution flow."),
-            "summary": extract_field("summary", "Error identified in submitted code."),
-            "hypotheses": ["Execution issue in submitted code"],
+            "root_cause": "",
+            "summary": "No definite error detected.",
+            "hypotheses": [],
             "corrected_code": extract_field("corrected_code", ""),
-            "explanation": extract_field("explanation", "Applied defensive fixes."),
-            "test_code": extract_field("test_code", "# Verification assertion\nassert True"),
-            "confidence_score": 0.9,
+            "explanation": extract_field("explanation", ""),
+            "test_code": extract_field("test_code", ""),
+            "confidence_score": 0.0,
         }
 
 class GroqService:
@@ -168,9 +168,7 @@ User's Submitted Buggy Code:
 ```
 
 Error Details:
-- Detected Error: {analysis.get('error_type', 'Python Error')}
-- Root Cause: {analysis.get('root_cause', '')}
-- Offending Line: {analysis.get('error_line', 'Unknown')}
+    - Independent findings: {json.dumps(analysis.get('issues', []), indent=2)}
 
 Supporting Knowledge Citations:
 {rag_context}
@@ -212,40 +210,30 @@ Output pure JSON only.
             return self._fallback_generate_fix(code, error_message, analysis, rag_references)
 
     def _fallback_error_analysis(self, code: str, error_message: str, ast_info: Dict[str, Any]) -> Dict[str, Any]:
-        """High-accuracy static fallback analysis if Groq has network issues."""
-        err_type = "PythonRuntimeError"
+        """Return only errors supported by syntax or a supplied traceback."""
         line = ast_info.get("syntax_error_line")
-        root_cause = "Static analysis detected potential runtime issues in execution flow."
-
         if not ast_info.get("syntax_valid", True):
-            err_type = "SyntaxError"
+            error_type = "SyntaxError"
             root_cause = f"SyntaxError at line {line}: {ast_info.get('syntax_error_msg', 'Invalid syntax')}"
-        elif "ZeroDivisionError" in error_message or "/ len(" in code or "/ 0" in code:
-            err_type = "ZeroDivisionError"
-            root_cause = "Division operation denominator may evaluate to zero."
-        elif "KeyError" in error_message or "['" in code:
-            err_type = "KeyError"
-            root_cause = "Dictionary lookup with non-existent key."
-        elif "IndexError" in error_message or "[0]" in code:
-            err_type = "IndexError"
-            root_cause = "List index accessed out of range on empty or short sequence."
-        elif "NameError" in error_message:
-            err_type = "NameError"
-            root_cause = "Attempting to access a variable or function that has not been defined."
-        elif "TypeError" in error_message:
-            err_type = "TypeError"
-            root_cause = "Incompatible type passed to operator or function."
+        else:
+            traceback_match = re.search(
+                r"(?:^|\n)([A-Za-z_][A-Za-z0-9_.]*(?:Error|Exception))(?::\s*(.*))?$",
+                error_message.strip(),
+            )
+            if traceback_match:
+                error_type = traceback_match.group(1)
+                root_cause = traceback_match.group(2) or error_type
+            else:
+                error_type = None
+                line = None
+                root_cause = ""
 
         return {
-            "error_type": err_type,
-            "error_line": line or 1,
+            "error_type": error_type,
+            "error_line": line,
             "root_cause": root_cause,
-            "summary": f"Identified {err_type} in submitted code.",
-            "hypotheses": [
-                "Unvalidated inputs before accessing resources",
-                "Missing defensive checks or fallback values",
-                "Off-by-one or missing definition in scope"
-            ]
+            "summary": f"Identified {error_type} in submitted code." if error_type else "No definite error detected.",
+            "hypotheses": [],
         }
 
     def _fallback_generate_fix(
@@ -255,43 +243,12 @@ Output pure JSON only.
         analysis: Dict[str, Any],
         rag_references: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """Safe fallback generator so the system never errors out or returns 500."""
-        # Simple automatic fixes for common patterns
-        corrected = code
-        err_type = analysis.get("error_type", "")
-        explanation = f"Applied defensive guard clauses and error checks for {err_type}."
-        test_code = "# Verification\nassert True"
-
-        # Syntax unclosed quotes
-        if err_type == "SyntaxError":
-            lines = code.splitlines()
-            fixed_lines = []
-            for ln in lines:
-                if ln.count('"') % 2 != 0 and ln.count("'") % 2 != 0:
-                    # Mixed unclosed quotes like name = 'foo"
-                    if ln.startswith("name = '") and ln.endswith('"'):
-                        ln = ln[:-1] + "'"
-                    else:
-                        ln = ln.replace("'", '"')
-                fixed_lines.append(ln)
-            corrected = "\n".join(fixed_lines)
-            explanation = "Fixed unterminated string literal quotes to use matching quote delimiters."
-            test_code = "# Verify syntax and execution\nassert True"
-        elif err_type == "ZeroDivisionError":
-            corrected = f"""# Defensive check for zero division
-if 'scores' in locals() or 'data' in locals():
-    # Safe division guard
-    pass
-{code}
-"""
-            explanation = "Added defensive check against zero denominator."
-            test_code = "assert True"
-
+        """Leave code unchanged when dynamic fix generation is unavailable."""
         return {
-            "corrected_code": corrected,
-            "explanation": explanation,
-            "test_code": test_code,
-            "confidence_score": 0.85
+            "corrected_code": code,
+            "explanation": "A fix could not be generated; the submitted code is unchanged.",
+            "test_code": "",
+            "confidence_score": 0.0,
         }
 
 groq_service = GroqService()
